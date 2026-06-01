@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# IDE files
+.idea/
+
+# Secrets and local configuration
+data/
+.env
+.env.*
+
+# Generated content
+generated/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

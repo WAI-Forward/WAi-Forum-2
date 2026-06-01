@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home Plot</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <canvas id="game" aria-label="Procedurally generated isometric world"></canvas>
+
+      <section class="hud" aria-label="Player status">
+        <div class="stat">
+          <span class="stat-label">Gold</span>
+          <strong id="gold">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Player XP</span>
+          <strong id="playerXp">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Home XP</span>
+          <strong id="xp">0</strong>
+        </div>
+        <div class="stat account-stat">
+          <span class="account-avatar" id="accountAvatar" aria-hidden="true">WA</span>
+          <span>
+            <span class="stat-label">Account</span>
+            <strong id="accountName">Loading</strong>
+          </span>
+        </div>
+        <div class="stat slim">
+          <span class="stat-label">Plot</span>
+          <strong id="plot">Owned</strong>
+        </div>
+      </section>
+
+      <section class="coordinates-panel" aria-label="Current coordinates">
+        <div class="coordinates-readout">
+          <span class="stat-label">Coords</span>
+          <strong id="coordinates">X 0, Y 0</strong>
+        </div>
+      </section>
+
+      <button id="forumButton" class="forum-button" type="button" aria-label="Open forum" aria-expanded="false" aria-controls="forumPanel">
+        <span class="forum-icon" aria-hidden="true"></span>
+      </button>
+
+      <section id="selectionPanel" class="selection-panel" aria-label="Selection actions">
+        <div>
+          <span class="selection-label">Selection</span>
+          <strong id="selectionSummary">No plots selected</strong>
+        </div>
+        <div class="selection-actions">
+          <button id="buyButton" type="button">Buy Land</button>
+          <button id="buildButton" type="button">Build</button>
+          <button id="decorationButton" type="button">New Decoration</button>
+          <button id="editBoardButton" type="button">Edit</button>
+          <button id="sellButton" type="button">Sell</button>
+        </div>
+      </section>
+
+      <section id="resourcesPanel" class="resources-panel" aria-label="Resources">
+        <button class="resource-pill" type="button" data-equip-resource="wood" aria-label="Equip wood floor tool" aria-pressed="false">
+          <span class="item-icon wood" aria-hidden="true"></span>
+          <span>
+            <span class="resource-name">Wood</span>
+            <strong id="woodResource">0</strong>
+          </span>
+        </button>
+        <button class="resource-pill" type="button" data-equip-resource="stone" aria-label="Equip stone floor tool" aria-pressed="false">
+          <span class="item-icon stone" aria-hidden="true"></span>
+          <span>
+            <span class="resource-name">Stone</span>
+            <strong id="stoneResource">0</strong>
+          </span>
+        </button>
+        <div class="resource-pill" aria-label="Sand resource">
+          <span class="item-icon sand" aria-hidden="true"></span>
+          <span>
+            <span class="resource-name">Sand</span>
+            <strong id="sandResource">0</strong>
+          </span>
+        </div>
+        <div class="resource-pill" aria-label="Grass resource">
+          <span class="item-icon grass" aria-hidden="true"></span>
+          <span>
+            <span class="resource-name">Grass</span>
+            <strong id="grassResource">0</strong>
+          </span>
+        </div>
+      </section>
+
+      <section id="hotbar" class="hotbar" aria-label="Hotbar"></section>
+
+      <div class="bottom-actions" aria-label="Player menus">
+        <button id="craftingButton" class="crafting-button" type="button" aria-label="Open crafting" aria-expanded="false" aria-controls="craftingPanel">
+          <span class="crafting-icon" aria-hidden="true"></span>
+        </button>
+
+        <button id="inventoryButton" class="inventory-button" type="button" aria-label="Open inventory">
+          <span class="bag-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <section id="inventoryPanel" class="inventory-panel" aria-label="Bag">
+        <header>
+          <span class="selection-label">Bag</span>
+          <button id="closeInventoryButton" class="mini-close" type="button" aria-label="Close inventory">x</button>
+        </header>
+        <div id="inventoryList" class="inventory-list"></div>
+        <div class="bag-hotbar">
+          <span class="selection-label">Hotbar</span>
+          <div id="inventoryHotbarSlots" class="inventory-hotbar-slots"></div>
+        </div>
+      </section>
+
+      <section id="craftingPanel" class="crafting-panel" aria-label="Crafting">
+        <header>
+          <div>
+            <span class="selection-label">Crafting</span>
+            <strong id="craftingTitle">Recipes</strong>
+          </div>
+          <button id="closeCraftingButton" class="mini-close" type="button" aria-label="Close crafting">x</button>
+        </header>
+        <div class="crafting-body">
+          <div id="craftingRecipeList" class="crafting-recipe-list" aria-label="Recipes"></div>
+          <div class="crafting-detail" aria-label="Recipe details">
+            <div class="crafting-detail-heading">
+              <span id="craftingDetailIcon" class="item-icon bowls" aria-hidden="true"></span>
+              <div>
+                <span class="selection-label">Selected</span>
+                <strong id="craftingDetailTitle">Wooden Bowl</strong>
+              </div>
+            </div>
+            <div id="craftingRequirements" class="crafting-requirements"></div>
+            <button id="craftButton" class="craft-button" type="button">Craft</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="forumPanel" class="forum-panel" aria-label="Forum">
+        <header class="forum-header">
+          <div>
+            <span class="selection-label">Forum</span>
+            <strong id="forumTitle">Boards</strong>
+          </div>
+          <button id="closeForumButton" class="mini-close" type="button" aria-label="Close forum">x</button>
+        </header>
+
+        <div id="forumTabs" class="forum-tabs" role="tablist" aria-label="Forum board filters">
+          <button class="forum-tab" type="button" role="tab" data-forum-tab="public">Public</button>
+          <button class="forum-tab" type="button" role="tab" data-forum-tab="company">Company</button>
+          <button class="forum-tab" type="button" role="tab" data-forum-tab="private">Private</button>
+          <button class="forum-tab" type="button" role="tab" data-forum-tab="your">Yours</button>
+        </div>
+
+        <div class="forum-body">
+          <nav class="forum-board-list" aria-label="Forum boards">
+            <div class="forum-column-label">Boards</div>
+            <div id="forumBoardList" class="forum-list"></div>
+          </nav>
+
+          <div class="forum-content">
+            <div class="forum-toolbar">
+              <button id="forumBackButton" class="forum-back" type="button">Boards</button>
+              <span id="forumBreadcrumb" class="forum-breadcrumb">Board index</span>
+            </div>
+            <p id="forumSubtitle" class="forum-subtitle">Buildings and rooms are mirrored here as forum boards and topics.</p>
+            <div id="forumTopicList" class="forum-topic-list"></div>
+            <div id="forumPostList" class="forum-post-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="homeChatPanel" class="home-chat-panel" aria-label="Home chat history">
+        <header>
+          <div>
+            <span class="selection-label">Home Sign</span>
+            <strong>Chat History</strong>
+          </div>
+          <button id="closeHomeChatButton" class="mini-close" type="button" aria-label="Close home chat">x</button>
+        </header>
+        <div id="homeChatList" class="home-chat-list"></div>
+      </section>
+
+      <form id="chatForm" class="chat-panel" autocomplete="off">
+        <label class="sr-only" for="chatInput">Message</label>
+        <input id="chatInput" maxlength="90" placeholder="Say something..." spellcheck="true">
+      </form>
+
+      <section id="boardEditor" class="board-editor" aria-label="Board editor">
+        <form id="boardEditorForm" class="board-editor-window" autocomplete="off">
+          <header class="editor-header">
+            <div>
+              <span class="editor-label">Board Editor</span>
+              <strong id="boardEditorSummary">Edit board</strong>
+            </div>
+            <button id="closeBoardEditorButton" class="icon-button" type="button" aria-label="Close board editor">x</button>
+          </header>
+
+          <div class="board-editor-body">
+            <div class="board-preview" aria-label="Selected building preview">
+              <img id="boardPreviewImage" alt="">
+            </div>
+            <div class="board-fields">
+              <label class="board-field">
+                <span>Name</span>
+                <input id="boardNameInput" maxlength="80" required>
+              </label>
+              <label class="board-field">
+                <span>Description</span>
+                <textarea id="boardDescriptionInput" maxlength="240" rows="4"></textarea>
+              </label>
+              <label class="board-field">
+                <span>Visibility</span>
+                <select id="boardVisibilityInput">
+                  <option value="public">Public</option>
+                  <option value="company">Company</option>
+                  <option value="private">Private</option>
+                </select>
+              </label>
+              <button id="saveBoardEditorButton" class="board-save-button" type="submit">Save Board</button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section id="deleteConfirm" class="delete-confirm" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" aria-describedby="deleteConfirmBody" hidden>
+        <div class="delete-confirm-window">
+          <header class="editor-header">
+            <div>
+              <span class="editor-label">Confirm Delete</span>
+              <strong id="deleteConfirmTitle">Sell board?</strong>
+            </div>
+            <button id="closeDeleteConfirmButton" class="icon-button" type="button" aria-label="Cancel delete">x</button>
+          </header>
+          <div class="delete-confirm-body">
+            <p id="deleteConfirmBody"></p>
+            <div class="delete-impact" aria-live="polite">
+              <span id="deleteTopicCount">0</span>
+              <strong id="deleteTopicLabel">topics also deleted</strong>
+            </div>
+            <p id="deleteMessageNote" class="delete-message-note"></p>
+            <div class="delete-confirm-actions">
+              <button id="cancelDeleteButton" type="button">Cancel</button>
+              <button id="confirmDeleteButton" type="button">Sell</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="buildingEditor" class="building-editor" aria-label="Building editor">
+        <div class="editor-window">
+          <header class="editor-header">
+            <div class="editor-header-top">
+              <div>
+                <span class="editor-label">Building Editor</span>
+                <strong id="editorSummary">New building</strong>
+              </div>
+              <button id="closeEditorButton" class="icon-button" type="button" aria-label="Close editor">x</button>
+            </div>
+
+            <div id="editorBoardFields" class="editor-meta-fields">
+              <label class="editor-meta-field">
+                <span>Name</span>
+                <input id="newBoardNameInput" maxlength="80" required>
+              </label>
+              <label class="editor-meta-field">
+                <span>Description</span>
+                <textarea id="newBoardDescriptionInput" maxlength="240" rows="2"></textarea>
+              </label>
+              <label class="editor-meta-field editor-visibility-field">
+                <span>Visibility</span>
+                <select id="newBoardVisibilityInput">
+                  <option value="public">Public</option>
+                  <option value="company">Company</option>
+                  <option value="private">Private</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="editor-image-tabs" role="tablist" aria-label="Image source">
+              <button class="editor-image-tab active" type="button" role="tab" aria-selected="true" data-editor-image-mode="new">New image</button>
+              <button class="editor-image-tab" type="button" role="tab" aria-selected="false" data-editor-image-mode="existing">Existing image</button>
+            </div>
+          </header>
+
+          <div class="editor-body">
+            <div class="editor-main-pane">
+              <div id="newImageStage" class="editor-mode-pane active">
+                <div class="editor-stage-wrap">
+                  <canvas id="editorBase" class="editor-canvas" aria-label="Selected plot screenshot"></canvas>
+                  <canvas id="doodleCanvas" class="editor-canvas doodle-canvas" aria-label="Building doodle"></canvas>
+                </div>
+              </div>
+
+              <div id="existingImagePanel" class="editor-mode-pane asset-library-panel" aria-label="Generated asset library">
+                <div class="asset-library-header">
+                  <span class="range-label">Asset Library</span>
+                  <button id="refreshAssetLibraryButton" class="asset-refresh-button" type="button" aria-label="Refresh asset library">Refresh</button>
+                </div>
+                <div id="assetLibraryList" class="asset-library-list">
+                  <span class="asset-library-empty">No saved assets yet</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="editor-side">
+              <div id="newImagePanel" class="editor-image-panel active">
+                <div class="tool-row resource-palette" aria-label="Building materials">
+                  <button class="swatch active" type="button" data-color="#9b5d34" data-resource="wood" style="--swatch:#9b5d34" aria-label="Wood brush">
+                    <span class="swatch-chip" aria-hidden="true"></span>
+                    <span class="swatch-copy">
+                      <span class="swatch-name">Wood</span>
+                      <strong class="swatch-count">0</strong>
+                    </span>
+                    <span class="swatch-required">0 used</span>
+                  </button>
+                  <button class="swatch" type="button" data-color="#8d9591" data-resource="stone" style="--swatch:#8d9591" aria-label="Stone brush">
+                    <span class="swatch-chip" aria-hidden="true"></span>
+                    <span class="swatch-copy">
+                      <span class="swatch-name">Stone</span>
+                      <strong class="swatch-count">0</strong>
+                    </span>
+                    <span class="swatch-required">0 used</span>
+                  </button>
+                </div>
+                <div id="materialSummary" class="material-summary">No materials used</div>
+                <label class="range-label" for="brushSize">Brush</label>
+                <input id="brushSize" type="range" min="3" max="26" value="10">
+                <label class="range-label" for="brushBrightness">Brightness</label>
+                <input id="brushBrightness" class="brightness-slider" type="range" min="0" max="100" value="50">
+                <button id="clearDoodleButton" type="button">Clear</button>
+                <button id="previewBuildingButton" type="button">Preview Building</button>
+                <div id="previewPane" class="preview-pane" aria-label="Building preview">
+                  <span id="previewStatus">No preview</span>
+                </div>
+              </div>
+
+              <div id="existingImageDetails" class="editor-image-panel asset-detail-panel" aria-live="polite">
+                <span class="range-label">Selected Image</span>
+                <div class="asset-detail-empty">Choose an image from the library</div>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="editor-footer">
+            <div class="editor-cost">
+              <span class="range-label">Cost to build</span>
+              <strong id="editorBuildCost">0 gold</strong>
+            </div>
+            <button id="placeBuildingButton" type="button" disabled>Build</button>
+          </footer>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
