@@ -20,4 +20,6 @@ The current canvas prototype persists the state it already has through:
 Run `schema.sql` against the `WAi Forum` database. The server reads its default
 connection URL from `data/db-uri.json`, using `dev_address` locally and
 `prod_address` when `NODE_ENV=production` and that value is set. You can still
-override this with `WAI_FORUM_DATABASE_URL` or `DATABASE_URL`.
+override this with `WAI_FORUM_DATABASE_URL` or `DATABASE_URL`; those environment
+variables may be either a raw PostgreSQL URL or the same JSON shape used by the
+Cloud Run `db-uri` secret.

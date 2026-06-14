@@ -1,5 +1,12 @@
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
+const funDashboard = document.querySelector("#funDashboard");
+const openWaiForumGame = document.querySelector("#openWaiForumGame");
+const openClusternautsGame = document.querySelector("#openClusternautsGame");
+const dashboardAccount = document.querySelector("#dashboardAccount");
+const dashboardAccountLabel = document.querySelector("#dashboardAccountLabel");
+const dashboardAccountName = document.querySelector("#dashboardAccountName");
+const dashboardAccountAvatar = document.querySelector("#dashboardAccountAvatar");
 const goldEl = document.querySelector("#gold");
 const playerXpEl = document.querySelector("#playerXp");
 const homeXpEl = document.querySelector("#xp");
@@ -36,6 +43,7 @@ const closeInventoryButton = document.querySelector("#closeInventoryButton");
 const inventoryList = document.querySelector("#inventoryList");
 const inventoryHotbarSlots = document.querySelector("#inventoryHotbarSlots");
 const forumButton = document.querySelector("#forumButton");
+const clusternautsButton = document.querySelector("#clusternautsButton");
 const forumPanel = document.querySelector("#forumPanel");
 const closeForumButton = document.querySelector("#closeForumButton");
 const forumTitle = document.querySelector("#forumTitle");
@@ -98,6 +106,39 @@ const editorBaseCtx = editorBase.getContext("2d");
 const doodleCtx = doodleCanvas.getContext("2d");
 const materialCanvas = document.createElement("canvas");
 const materialCtx = materialCanvas.getContext("2d");
+const clusternautsUrl = String(window.WAI_FUN_CONFIG?.clusternautsUrl || "").trim();
+const clusternautsLaunchUrl = buildClusternautsLaunchUrl(clusternautsUrl);
+if (clusternautsButton && clusternautsLaunchUrl) {
+  clusternautsButton.href = clusternautsLaunchUrl;
+  clusternautsButton.hidden = false;
+}
+if (openClusternautsGame && clusternautsLaunchUrl) {
+  openClusternautsGame.href = clusternautsLaunchUrl;
+} else if (openClusternautsGame) {
+  openClusternautsGame.setAttribute("aria-disabled", "true");
+  openClusternautsGame.addEventListener("click", (event) => event.preventDefault());
+}
+if (openWaiForumGame) {
+  openWaiForumGame.addEventListener("click", () => {
+    document.body.classList.add("wai-forum-game-active");
+    funDashboard.hidden = true;
+    resize();
+  });
+}
+
+function buildClusternautsLaunchUrl(rawUrl) {
+  if (!rawUrl) return "";
+  try {
+    const url = new URL(rawUrl, window.location.href);
+    url.pathname = "/auth/login";
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("return_to", "/");
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
 
 const TILE_W = 74;
 const TILE_H = 38;
@@ -238,7 +279,11 @@ const hudDisplayCache = {
   coordinates: "",
   accountName: "",
   accountInitials: "",
-  accountColor: ""
+  accountColor: "",
+  dashboardAccountName: "",
+  dashboardAccountInitials: "",
+  dashboardAccountLabel: "",
+  dashboardAccountColor: ""
 };
 const buildingHitCanvas = document.createElement("canvas");
 const buildingHitCtx = buildingHitCanvas.getContext("2d");
@@ -307,6 +352,8 @@ const state = {
     initials: "WA",
     color: "#385f71"
   },
+  accountLoading: true,
+  accountOffline: false,
   chatActive: false,
   inWater: false,
   inventoryOpen: false,
@@ -6812,6 +6859,42 @@ function setAccountColorIfChanged(color) {
   hudDisplayCache.accountColor = color;
 }
 
+function updateDashboardAccountUi() {
+  if (!dashboardAccount) return;
+
+  const label = state.accountLoading
+    ? "WAi Forward account"
+    : state.accountOffline
+    ? "Account unavailable"
+    : "Signed in as";
+  const name = state.accountLoading
+    ? "Checking session..."
+    : state.accountOffline
+    ? "Offline"
+    : state.account.name || "WAi Forward member";
+  const initials = state.accountLoading || state.accountOffline ? "WA" : state.account.initials || "WA";
+  const color = state.accountLoading || state.accountOffline ? "#385f71" : state.account.color || "#385f71";
+
+  dashboardAccount.classList.toggle("is-loading", state.accountLoading);
+  dashboardAccount.classList.toggle("is-offline", state.accountOffline);
+  if (dashboardAccountLabel && hudDisplayCache.dashboardAccountLabel !== label) {
+    dashboardAccountLabel.textContent = label;
+    hudDisplayCache.dashboardAccountLabel = label;
+  }
+  if (dashboardAccountName && hudDisplayCache.dashboardAccountName !== name) {
+    dashboardAccountName.textContent = name;
+    hudDisplayCache.dashboardAccountName = name;
+  }
+  if (dashboardAccountAvatar && hudDisplayCache.dashboardAccountInitials !== initials) {
+    dashboardAccountAvatar.textContent = initials;
+    hudDisplayCache.dashboardAccountInitials = initials;
+  }
+  if (dashboardAccountAvatar && hudDisplayCache.dashboardAccountColor !== color) {
+    dashboardAccountAvatar.style.setProperty("--account-color", color);
+    hudDisplayCache.dashboardAccountColor = color;
+  }
+}
+
 function updateHud() {
   setTextIfChanged(goldEl, "gold", Math.floor(state.gold));
   setTextIfChanged(playerXpEl, "playerXp", formatPlayerXpProgress());
@@ -6820,6 +6903,7 @@ function updateHud() {
   setTextIfChanged(accountNameEl, "accountName", state.account.name || "WAi Forward member");
   setTextIfChanged(accountAvatarEl, "accountInitials", state.account.initials || "WA");
   setAccountColorIfChanged(state.account.color || "#385f71");
+  updateDashboardAccountUi();
 }
 
 function nextGoldXpMilestone() {
@@ -6856,13 +6940,18 @@ async function loadAccount() {
       initials: initialsForName(user.name || user.email || "WA"),
       color: user.color || "#385f71"
     };
+    state.accountLoading = false;
+    state.accountOffline = false;
     state.bubbleText = `Welcome, ${state.account.name}`;
     state.bubbleUntil = performance.now() + 2600;
     updateHud();
     return true;
   } catch (error) {
     console.warn(error);
-    accountNameEl.textContent = "Offline";
+    state.accountLoading = false;
+    state.accountOffline = true;
+    if (accountNameEl) accountNameEl.textContent = "Offline";
+    updateDashboardAccountUi();
     return false;
   }
 }

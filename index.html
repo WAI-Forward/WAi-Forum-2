@@ -8,6 +8,38 @@
   </head>
   <body>
     <main class="game-shell">
+      <section id="funDashboard" class="fun-dashboard" aria-label="WAi Fun dashboard">
+        <div class="fun-dashboard__inner">
+          <header class="fun-dashboard__header">
+            <span class="fun-dashboard__kicker">WAi Forward Fun</span>
+            <h1>Choose a world</h1>
+            <div class="fun-dashboard__account is-loading" id="dashboardAccount">
+              <span class="fun-dashboard__account-avatar" id="dashboardAccountAvatar" aria-hidden="true">WA</span>
+              <span>
+                <span class="fun-dashboard__account-label" id="dashboardAccountLabel">WAi Forward account</span>
+                <strong id="dashboardAccountName">Checking session...</strong>
+              </span>
+            </div>
+          </header>
+          <div class="fun-dashboard__grid">
+            <button id="openWaiForumGame" class="fun-dashboard__tile" type="button">
+              <span class="fun-dashboard__tile-mark fun-dashboard__tile-mark--forum" aria-hidden="true"></span>
+              <span>
+                <strong>WAi Forum</strong>
+                <small>Build boards, rooms, and a shared forum village.</small>
+              </span>
+            </button>
+            <a id="openClusternautsGame" class="fun-dashboard__tile" href="#" target="_blank" rel="noopener">
+              <span class="fun-dashboard__tile-mark fun-dashboard__tile-mark--clusternauts" aria-hidden="true"></span>
+              <span>
+                <strong>Clusternauts</strong>
+                <small>Launch into the renamed SpAice multiplayer game.</small>
+              </span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       <canvas id="game" aria-label="Procedurally generated isometric world"></canvas>
 
       <section class="hud" aria-label="Player status">
@@ -46,6 +78,11 @@
       <button id="forumButton" class="forum-button" type="button" aria-label="Open forum" aria-expanded="false" aria-controls="forumPanel">
         <span class="forum-icon" aria-hidden="true"></span>
       </button>
+
+      <a id="clusternautsButton" class="clusternauts-button" href="#" target="_blank" rel="noopener" hidden>
+        <span class="clusternauts-button__mark" aria-hidden="true"></span>
+        <span>Clusternauts</span>
+      </a>
 
       <section id="selectionPanel" class="selection-panel" aria-label="Selection actions">
         <div>
@@ -357,6 +394,7 @@
       </section>
     </main>
 
+    <script src="config.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

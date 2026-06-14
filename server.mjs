@@ -36,6 +36,11 @@ const forumSessionCookie = "wai_forum_session";
 const forumSessionMaxAgeSeconds = Number(process.env.FORUM_SESSION_MAX_AGE_SECONDS || 12 * 60 * 60);
 const databaseUrl = normalizeDatabaseUrl(loadConfiguredDatabaseUrl());
 const forumApiToken = process.env.FORUM_API_TOKEN || process.env.WAI_FORUM_API_TOKEN || "";
+const configuredClusternautsUrl = stripTrailingSlash(process.env.CLUSTERNAUTS_URL || "");
+const cloudClusternautsUrl = "https://clusternauts-806779816452.us-central1.run.app";
+const assetBucket = String(process.env.WAI_FORUM_ASSET_BUCKET || process.env.GCS_ASSET_BUCKET || "").trim();
+const assetPrefix = String(process.env.WAI_FORUM_ASSET_PREFIX || "generated/building-assets").replace(/^\/+|\/+$/g, "");
+const requiredForumRole = process.env.WAI_FORUM_REQUIRED_ROLE || "WAI Forum EA";
 const defaultVertexProject = "wai-forward-runwai";
 const defaultVertexLocation = process.env.GOOGLE_CLOUD_LOCATION || "global";
 const cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform";
@@ -64,6 +69,20 @@ const mimeTypes = {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
+    if (req.method === "GET" && url.pathname === "/healthz") {
+      writeJson(res, 200, { ok: true, service: "wai-forum" });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/config.js") {
+      res.writeHead(200, {
+        "content-type": "text/javascript; charset=utf-8",
+        "cache-control": "no-store"
+      });
+      res.end(`window.WAI_FUN_CONFIG=${JSON.stringify({ clusternautsUrl: clusternautsUrlForRequest(req) })};\n`);
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/auth/login") {
       redirectToWebsiteLogin(req, res, url.searchParams.get("return_to"));
       return;
@@ -87,6 +106,10 @@ createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/account") {
       if (!forumSession) {
         writeJson(res, 401, { error: "unauthenticated", login_url: buildForumLoginPath(url.pathname) });
+        return;
+      }
+      if (!userHasForumAccess(forumSession.user)) {
+        writeJson(res, 403, { error: "forbidden", message: "WAi Forum early access is required." });
         return;
       }
       await upsertForumUser(forumSession.user);
@@ -124,6 +147,15 @@ createServer(async (req, res) => {
         redirectToWebsiteLogin(req, res, url.pathname + url.search);
       } else {
         writeJson(res, 401, { error: "unauthenticated" });
+      }
+      return;
+    }
+
+    if (!userHasForumAccess(forumSession.user)) {
+      if (req.method === "GET") {
+        writeAccessDenied(res);
+      } else {
+        writeJson(res, 403, { error: "forbidden", message: "WAi Forum early access is required." });
       }
       return;
     }
@@ -211,27 +243,72 @@ function loadAuthConfig() {
 
 function loadConfiguredDatabaseUrl() {
   const envUrl = process.env.WAI_FORUM_DATABASE_URL || process.env.DATABASE_URL;
-  if (envUrl) return envUrl;
+  if (envUrl) return databaseAddressFromConfigValue(envUrl, "WAi Forum database environment variable");
 
   const configPath = join(root, "data", "db-uri.json");
   if (!existsSync(configPath)) return "";
 
   try {
     const config = JSON.parse(readFileSync(configPath, "utf8"));
-    const devAddress = String(config.dev_address || "").trim();
-    const prodAddress = String(config.prod_address || "").trim();
-    if (process.env.NODE_ENV === "production" && prodAddress) return prodAddress;
-    return devAddress || prodAddress;
+    return selectDatabaseAddress(config);
   } catch (error) {
     console.warn(`Could not read WAi Forum database config: ${error.message}`);
     return "";
   }
 }
 
+function databaseAddressFromConfigValue(value, source) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (!raw.startsWith("{")) return raw;
+
+  try {
+    return selectDatabaseAddress(JSON.parse(raw));
+  } catch (error) {
+    console.warn(`Could not read ${source}: ${error.message}`);
+    return "";
+  }
+}
+
+function selectDatabaseAddress(config) {
+  if (!config || typeof config !== "object") return "";
+
+  const devAddress = String(config.dev_address || "").trim();
+  const prodAddress = String(config.prod_address || "").trim();
+  const useProd = process.env.WAI_FORUM_DB_TARGET === "prod" || process.env.NODE_ENV === "production";
+  return useProd ? prodAddress || devAddress : devAddress || prodAddress;
+}
+
 function requestOrigin(req) {
   const proto = req.headers["x-forwarded-proto"] || "http";
   const host = req.headers["x-forwarded-host"] || req.headers.host || `127.0.0.1:${port}`;
   return `${proto}://${host}`;
+}
+
+function clusternautsUrlForRequest(req) {
+  if (configuredClusternautsUrl) return configuredClusternautsUrl;
+  if (isCloudRuntime()) return cloudClusternautsUrl;
+
+  const hostHeader = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
+  const hostname = hostHeader.replace(/^\[|\]$/g, "").split(":")[0].toLowerCase();
+  if (!hostname) return "";
+
+  const devHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  if (!devHost) return "";
+
+  const proto = req.headers["x-forwarded-proto"] || "http";
+  const displayHost = hostname === "::1" ? "[::1]" : hostname;
+  return `${proto}://${displayHost}:3000`;
+}
+
+function isCloudRuntime() {
+  return Boolean(process.env.K_SERVICE || process.env.K_REVISION || process.env.K_CONFIGURATION);
 }
 
 function forumBaseUrl(req) {
@@ -293,6 +370,14 @@ async function handleLaunchCallback(req, res, url) {
   }
 
   const user = buildForumUser(tokenPayload);
+  if (!userHasForumAccess(user)) {
+    res.writeHead(403, {
+      "content-type": "text/html; charset=utf-8",
+      "set-cookie": clearForumSessionCookie(req)
+    });
+    res.end(accessDeniedHtml());
+    return;
+  }
   const sessionValue = signForumSession({
     user,
     wf_access_token: tokens.wf_access_token,
@@ -343,6 +428,52 @@ function buildForumUser(payload) {
     activity_status: payload.activity_status || "online",
     color: colorFromUserId(payload.user_id)
   };
+}
+
+function normalizedRole(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+}
+
+function userHasForumAccess(user) {
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  const required = normalizedRole(requiredForumRole);
+  return roles.some((role) => normalizedRole(role) === required);
+}
+
+function writeAccessDenied(res) {
+  res.writeHead(403, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+  res.end(accessDeniedHtml());
+}
+
+function accessDeniedHtml() {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WAi Forum access required</title>
+    <style>
+      body{margin:0;display:grid;min-height:100vh;place-items:center;background:#101811;color:#fff6db;font-family:Inter,system-ui,sans-serif}
+      main{max-width:520px;padding:28px;border:1px solid rgba(255,244,213,.22);border-radius:8px;background:rgba(23,29,24,.84)}
+      h1{margin:0 0 10px;font-size:24px}p{margin:0 0 18px;color:#dbc8a1;line-height:1.5}a{color:#9ee7ff;font-weight:800}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>WAi Forum early access required</h1>
+      <p>Your WAi Forward account is logged in, but it does not include the ${escapeHtml(requiredForumRole)} role yet.</p>
+      <a href="${websiteUrl}">Return to WAi Forward</a>
+    </main>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function colorFromUserId(userId) {
@@ -434,7 +565,8 @@ function loadCoreTokenExchangeSecret() {
     process.env.CORE_TOKEN_EXCHANGE_SECRET ||
     process.env.CORE_SECRET ||
     process.env.WAI_CORE_SECRET;
-  if (envSecret) return envSecret;
+  const normalizedEnvSecret = normalizeCoreTokenExchangeSecret(envSecret);
+  if (normalizedEnvSecret) return normalizedEnvSecret;
 
   const candidates = [
     join(root, "data", "core.json"),
@@ -447,18 +579,30 @@ function loadCoreTokenExchangeSecret() {
       if (!existsSync(path)) continue;
       const raw = readFileSync(path, "utf8").trim();
       if (!raw) continue;
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed?.secret) return parsed.secret;
-      } catch (error) {
-        return raw;
-      }
+      const normalizedSecret = normalizeCoreTokenExchangeSecret(raw);
+      if (normalizedSecret) return normalizedSecret;
     } catch (error) {
       console.warn(`Could not load core token exchange secret from ${path}: ${error.message}`);
     }
   }
 
   return "";
+}
+
+function normalizeCoreTokenExchangeSecret(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "string") return parsed.trim();
+    if (parsed && typeof parsed === "object" && "secret" in parsed) {
+      return String(parsed.secret || "").trim();
+    }
+    return "";
+  } catch {
+    return raw;
+  }
 }
 
 function writeJson(res, status, payload) {
@@ -1947,6 +2091,11 @@ async function handlePreviewBuilding(req, res) {
 
 async function handleBuildingAssetLibrary(req, res, forumSession) {
   const userSegment = safePathSegment(forumSession.user.id || "user");
+  if (assetBucket) {
+    await handleCloudBuildingAssetLibrary(req, res, userSegment);
+    return;
+  }
+
   const assetDir = join(root, "generated", "building-assets", userSegment);
   const manifest = await readAssetManifest(assetDir);
   const manifestItems = Array.isArray(manifest.assets) ? manifest.assets : [];
@@ -2009,6 +2158,11 @@ async function handleBuildingAssetUpload(req, res, forumSession) {
   }
 
   const userSegment = safePathSegment(forumSession.user.id || "user");
+  if (assetBucket) {
+    await handleCloudBuildingAssetUpload(req, res, userSegment, buildingId, image, data);
+    return;
+  }
+
   const assetDir = join(root, "generated", "building-assets", userSegment);
   const filename = `${buildingId}.${image.extension}`;
   await mkdir(assetDir, { recursive: true });
@@ -2039,6 +2193,107 @@ async function handleBuildingAssetUpload(req, res, forumSession) {
   });
 }
 
+async function handleCloudBuildingAssetLibrary(req, res, userSegment) {
+  const manifest = await readCloudAssetManifest(userSegment);
+  const assets = (Array.isArray(manifest.assets) ? manifest.assets : [])
+    .map(sanitizeAssetManifestItem)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const left = Date.parse(a.createdAt || "") || 0;
+      const right = Date.parse(b.createdAt || "") || 0;
+      return right - left;
+    });
+  writeJson(res, 200, { ok: true, assets });
+}
+
+async function handleCloudBuildingAssetUpload(req, res, userSegment, buildingId, image, data) {
+  const objectName = `${assetPrefix}/${userSegment}/${buildingId}.${image.extension}`;
+  await uploadCloudStorageObject(objectName, image.buffer, image.mimeType);
+  const url = publicCloudStorageUrl(objectName);
+  const manifest = await readCloudAssetManifest(userSegment);
+  const assets = Array.isArray(manifest.assets) ? manifest.assets.map(sanitizeAssetManifestItem).filter(Boolean) : [];
+  const nextAsset = sanitizeAssetManifestItem({
+    id: buildingId,
+    name: data.name,
+    assetType: data.assetType,
+    url,
+    width: data.width,
+    height: data.height,
+    createdAt: new Date().toISOString(),
+    source: data.source || "generated"
+  });
+  const nextAssets = [
+    nextAsset,
+    ...assets.filter((asset) => asset.id !== buildingId && asset.url !== url)
+  ].filter(Boolean).slice(0, 240);
+  await writeCloudAssetManifest(userSegment, { assets: nextAssets });
+
+  writeJson(res, 200, {
+    ok: true,
+    url,
+    asset: nextAsset
+  });
+}
+
+function cloudAssetManifestObjectName(userSegment) {
+  return `${assetPrefix}/${userSegment}/manifest.json`;
+}
+
+async function readCloudAssetManifest(userSegment) {
+  try {
+    const response = await fetch(
+      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(assetBucket)}/o/${encodeURIComponent(cloudAssetManifestObjectName(userSegment))}?alt=media`,
+      { headers: await cloudStorageHeaders() }
+    );
+    if (response.status === 404) return { assets: [] };
+    if (!response.ok) throw new Error(await response.text());
+    return await response.json();
+  } catch (error) {
+    console.warn(`Could not read cloud building asset manifest: ${error.message}`);
+    return { assets: [] };
+  }
+}
+
+async function writeCloudAssetManifest(userSegment, manifest) {
+  await uploadCloudStorageObject(
+    cloudAssetManifestObjectName(userSegment),
+    Buffer.from(JSON.stringify(manifest, null, 2)),
+    "application/json; charset=utf-8"
+  );
+}
+
+async function uploadCloudStorageObject(objectName, buffer, contentType) {
+  const response = await fetch(
+    `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(assetBucket)}/o?uploadType=media&name=${encodeURIComponent(objectName)}`,
+    {
+      method: "POST",
+      headers: {
+        ...(await cloudStorageHeaders()),
+        "content-type": contentType || "application/octet-stream"
+      },
+      body: buffer
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Cloud Storage upload failed: ${await response.text()}`);
+  }
+}
+
+async function cloudStorageHeaders() {
+  const credentials = loadGoogleCredentials();
+  const accessToken = credentials
+    ? await getServiceAccountAccessToken(credentials)
+    : await getCloudRunAccessToken();
+  if (!accessToken) {
+    throw new Error("No Google credentials found for Cloud Storage asset persistence.");
+  }
+  return { authorization: `Bearer ${accessToken}` };
+}
+
+function publicCloudStorageUrl(objectName) {
+  return `https://storage.googleapis.com/${encodeURIComponent(assetBucket)}/${objectName.split("/").map(encodeURIComponent).join("/")}`;
+}
+
 async function readAssetManifest(assetDir) {
   try {
     return JSON.parse(await readFile(join(assetDir, "manifest.json"), "utf8"));
@@ -2056,7 +2311,7 @@ function sanitizeAssetManifestItem(item) {
   if (!item || typeof item !== "object") return null;
   const id = String(item.id || "").slice(0, 120);
   const url = String(item.url || "");
-  if (!url.startsWith("/generated/building-assets/")) return null;
+  if (!url.startsWith("/generated/building-assets/") && !url.startsWith("https://storage.googleapis.com/")) return null;
   return {
     id: id || createHash("sha256").update(url).digest("hex").slice(0, 24),
     name: String(item.name || "Saved Asset").slice(0, 80),
@@ -2183,6 +2438,20 @@ async function getServiceAccountAccessToken(credentials) {
   return cachedAccessToken.token;
 }
 
+async function getCloudRunAccessToken() {
+  try {
+    const response = await fetch(
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+      { headers: { "Metadata-Flavor": "Google" } }
+    );
+    if (!response.ok) return "";
+    const data = await response.json();
+    return data.access_token || "";
+  } catch {
+    return "";
+  }
+}
+
 function base64UrlJson(value) {
   return toBase64Url(Buffer.from(JSON.stringify(value)));
 }
@@ -2241,6 +2510,7 @@ function dataUrlToImageAsset(dataUrl) {
   try {
     return {
       extension,
+      mimeType,
       buffer: Buffer.from(inline.data, "base64")
     };
   } catch (error) {

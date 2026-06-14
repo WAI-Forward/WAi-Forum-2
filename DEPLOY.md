@@ -1,0 +1,2 @@
+
+gcloud run deploy wai-forum-fun --source=. --region=us-central1 --allow-unauthenticated --min-instances=0 --max-instances=3 --add-cloudsql-instances="wai-forward-forum:us-central1:wai-forum-instance" --set-env-vars="NODE_ENV=production,WAI_FORWARD_WEBSITE_URL=https://waiforward.co.uk,FORUM_PUBLIC_URL=https://wai-forum-fun-806779816452.us-central1.run.app,WAI_FORUM_ASSET_BUCKET=wai-forward-forum-generated-assets" --set-secrets="WAI_FORUM_DATABASE_URL=db-uri:latest,CORE_TOKEN_EXCHANGE_SECRET=core:latest"

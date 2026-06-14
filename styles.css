@@ -35,6 +35,221 @@ body {
   cursor: crosshair;
 }
 
+body:not(.wai-forum-game-active) #game,
+body:not(.wai-forum-game-active) .hud,
+body:not(.wai-forum-game-active) .coordinates-panel,
+body:not(.wai-forum-game-active) .forum-button,
+body:not(.wai-forum-game-active) .clusternauts-button,
+body:not(.wai-forum-game-active) .selection-panel,
+body:not(.wai-forum-game-active) .resources-panel,
+body:not(.wai-forum-game-active) .hotbar,
+body:not(.wai-forum-game-active) .bottom-actions,
+body:not(.wai-forum-game-active) .inventory-panel,
+body:not(.wai-forum-game-active) .crafting-panel,
+body:not(.wai-forum-game-active) .forum-panel,
+body:not(.wai-forum-game-active) .home-chat-panel,
+body:not(.wai-forum-game-active) .board-editor,
+body:not(.wai-forum-game-active) .building-editor,
+body:not(.wai-forum-game-active) .delete-confirm {
+  display: none !important;
+}
+
+.fun-dashboard {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(107, 151, 101, 0.23), transparent 31rem),
+    linear-gradient(145deg, #101811 0%, #12241d 44%, #191812 100%);
+}
+
+.fun-dashboard[hidden],
+.wai-forum-game-active .fun-dashboard {
+  display: none;
+}
+
+.fun-dashboard__inner {
+  width: min(840px, 100%);
+}
+
+.fun-dashboard__header {
+  margin-bottom: 18px;
+}
+
+.fun-dashboard__kicker {
+  display: block;
+  color: #e8c16d;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.fun-dashboard h1 {
+  margin: 6px 0 0;
+  color: #fff6db;
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.fun-dashboard__account {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: min(360px, 100%);
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 193, 109, 0.38);
+  border-radius: 8px;
+  background: rgba(23, 29, 24, 0.78);
+  box-shadow:
+    inset 0 0 22px rgba(232, 193, 109, 0.08),
+    0 12px 34px rgba(0, 0, 0, 0.18);
+  color: rgba(255, 246, 219, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.fun-dashboard__account.is-loading,
+.fun-dashboard__account.is-offline {
+  border-color: rgba(255, 244, 213, 0.2);
+  box-shadow: inset 0 0 22px rgba(255, 244, 213, 0.05);
+}
+
+.fun-dashboard__account-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 244, 213, 0.28);
+  border-radius: 8px;
+  background: var(--account-color, #385f71);
+  color: #fff6db;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.fun-dashboard__account-label {
+  display: block;
+  color: #dbc8a1;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.fun-dashboard__account strong {
+  display: block;
+  margin-top: 3px;
+  color: #fff6db;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.fun-dashboard__account.is-offline strong {
+  color: rgba(255, 246, 219, 0.78);
+}
+
+.fun-dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.fun-dashboard__tile {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  min-height: 170px;
+  padding: 22px;
+  border: 1px solid rgba(255, 244, 213, 0.22);
+  border-radius: 8px;
+  background: rgba(23, 29, 24, 0.84);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3);
+  color: #fff6db;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.fun-dashboard__tile:hover,
+.fun-dashboard__tile:focus-visible {
+  border-color: rgba(232, 193, 109, 0.62);
+  background: rgba(37, 47, 38, 0.94);
+  transform: translateY(-1px);
+}
+
+.fun-dashboard__tile[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fun-dashboard__tile strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.fun-dashboard__tile small {
+  display: block;
+  color: #dbc8a1;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.fun-dashboard__tile-mark {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 244, 213, 0.18), 0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
+.fun-dashboard__tile-mark--forum {
+  background:
+    linear-gradient(135deg, rgba(232, 193, 109, 0.92), rgba(107, 151, 101, 0.8)),
+    #233429;
+}
+
+.fun-dashboard__tile-mark--forum::before {
+  width: 36px;
+  height: 28px;
+  border: 4px solid #fff6db;
+  border-radius: 8px;
+  box-shadow: 0 11px 0 -7px #fff6db;
+  content: "";
+}
+
+.fun-dashboard__tile-mark--clusternauts {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 63% 37%, #ffffff 0 4px, transparent 5px),
+    radial-gradient(circle at 45% 55%, #7be7ff 0 28%, #365aff 42%, #192346 75%);
+}
+
+@media (max-width: 720px) {
+  .fun-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fun-dashboard__tile {
+    min-height: 136px;
+  }
+}
+
 .hud {
   position: fixed;
   top: max(16px, env(safe-area-inset-top));
@@ -412,6 +627,44 @@ body {
   border-color: rgba(232, 193, 109, 0.58);
   background: rgba(37, 47, 38, 0.92);
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.32), 0 0 0 3px rgba(232, 193, 109, 0.16);
+}
+
+.clusternauts-button {
+  position: fixed;
+  top: max(76px, calc(env(safe-area-inset-top) + 76px));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 12px 9px 10px;
+  border: 1px solid rgba(145, 226, 255, 0.42);
+  border-radius: 8px;
+  background: rgba(12, 27, 33, 0.84);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+  color: #effdff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-decoration: none;
+  backdrop-filter: blur(10px);
+}
+
+.clusternauts-button:hover,
+.clusternauts-button:focus-visible {
+  border-color: rgba(120, 232, 255, 0.78);
+  transform: translateY(-1px);
+}
+
+.clusternauts-button__mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 63% 37%, #ffffff 0 2px, transparent 3px),
+    radial-gradient(circle at 45% 55%, #7be7ff 0 28%, #365aff 42%, #192346 75%);
+  box-shadow: 0 0 18px rgba(98, 213, 255, 0.5);
 }
 
 .forum-icon {
